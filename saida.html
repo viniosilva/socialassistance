@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Assistencia Social | Entrada</title>
+  </head>
+
+  <body>
+    <main>
+      <label for="familyId"
+        >Família ID: <input type="number" name="familyId"
+      /></label>
+      <input type="file" name="file" accept="text/csv" />
+      <button name="download">Baixar</button>
+      <table name="resources">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </main>
+  </body>
+  <script>
+    const inputFamilyId = document.querySelector(
+      'main input[type="number"][name="familyId"]'
+    );
+    const inputFile = document.querySelector(
+      'main input[type="file"][name="file"]'
+    );
+    const buttonDownload = document.querySelector(
+      'main button[name="download"]'
+    );
+    const tableResources = document.querySelector(
+      'main table[name="resources"]'
+    );
+
+    inputFile.onchange = async (evt) => {
+      const data = await readCSV(evt.target.files[0]);
+      tableResources.tHead.innerHTML = "";
+      tableResources.tBodies[0].innerHTML = "";
+
+      const headerTableTr = document.createElement("tr");
+      tableResources.tHead.appendChild(headerTableTr);
+      [...data[0], "Doar"].forEach((c) => {
+        const td = document.createElement("td");
+        headerTableTr.appendChild(td);
+        td.innerText = c;
+      });
+
+      const iQuantity = data[0].findIndex((h) => h === "Quantidade");
+
+      data.slice(1).forEach((line) => {
+        const tr = document.createElement("tr");
+        tableResources.tBodies[0].appendChild(tr);
+
+        line.forEach((c) => {
+          const td = document.createElement("td");
+          tr.appendChild(td);
+          td.innerText = c;
+        });
+        const td = document.createElement("td");
+        tr.appendChild(td);
+
+        const quantity = parseInt(line[iQuantity]);
+
+        const input = document.createElement("input");
+        td.appendChild(input);
+        input.type = "number";
+        input.max = quantity;
+        input.onkeyup = (e) => {
+          const max = parseInt(e.target.getAttribute("max"));
+          if (e.target.value > max) {
+            e.target.value = max;
+          }
+        };
+      });
+
+      async function readCSV(file) {
+        return new Promise((resolve) => {
+          fr = new FileReader();
+          fr.onload = (e) => {
+            resolve(fr.result.split("\n").map((line) => line.split(";")));
+          };
+          fr.readAsText(file);
+        });
+      }
+    };
+
+    buttonDownload.onclick = (evt) => {
+      if (inputFamilyId.value === "") {
+        alert("Favor informar Família ID");
+        return;
+      }
+
+      const body = Array.from(tableResources.tBodies[0].children).map((line) =>
+        Array.from(line.cells).map((c) => {
+          if (c.innerText !== "") {
+            return c.innerText;
+          }
+          return c.firstChild.value;
+        })
+      );
+
+      const head = Array.from(tableResources.tHead.firstChild.cells).map(
+        (c) => c.innerText
+      );
+      const iQuantity = head.findIndex((h) => h === "Quantidade");
+      const iDonate = head.findIndex((h) => h === "Doar");
+
+      const resources = [head.slice(0, head.length - 1).join(";")];
+      body.forEach((line) => {
+        let donate = parseInt(line[iDonate]);
+        if (!isNaN(donate)) {
+          const quantity = parseInt(line[iQuantity]);
+          if (isNaN(quantity)) {
+            alert(
+              `Quantidade inválida: ${
+                line[head.findIndex((h) => h === "Recurso")]
+              }`
+            );
+            return;
+          }
+
+          line[iQuantity] = `${quantity - donate}`;
+        }
+
+        resources.push(line.slice(0, line.length - 1).join(";"));
+      });
+
+      const resourcesOut = [head.slice(0, head.length - 1).join(";")];
+      body.forEach((line) => {
+        if (line[iDonate] === "") {
+          return;
+        }
+
+        let add = parseInt(line[iDonate]);
+        if (!isNaN(add)) {
+          const iQuantity = head.findIndex((h) => h === "Quantidade");
+          line[iQuantity] = `${add}`;
+        }
+
+        resourcesOut.push(line.slice(0, line.length - 1).join(";"));
+      });
+
+      if (resourcesOut.length === 1) {
+        alert("Não foi possível reconhecer alterações nos recursos");
+        return;
+      }
+
+      const now = new Date();
+      const time = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, "0"),
+        String(now.getDate()).padStart(2, "0"),
+        String(now.getHours()).padStart(2, "0"),
+        String(now.getMinutes()).padStart(2, "0"),
+        String(now.getSeconds()).padStart(2, "0"),
+      ].join("");
+
+      const aResources = document.createElement("a");
+      aResources.download = `recursos_${time}.csv`;
+      aResources.href = `data:text/csv;charset=utf-8,${encodeURIComponent(
+        resources.join("\n")
+      )}`;
+
+      const aResourcesIn = document.createElement("a");
+      aResourcesIn.download = `saida_${time}_${inputFamilyId.value}.csv`;
+      aResourcesIn.href = `data:text/csv;charset=utf-8,${encodeURIComponent(
+        resourcesOut.join("\n")
+      )}`;
+
+      aResources.click();
+      aResourcesIn.click();
+    };
+  </script>
+</html>

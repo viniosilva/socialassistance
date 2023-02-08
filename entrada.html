@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Assistencia Social | Entrada</title>
+  </head>
+
+  <body>
+    <main>
+      <input type="file" name="file" accept="text/csv" />
+      <button name="newLine">Nova linha</button>
+      <button name="download">Baixar</button>
+      <table name="resources">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </main>
+  </body>
+  <script>
+    const inputFile = document.querySelector(
+      'main input[type="file"][name="file"]'
+    );
+    const buttonNewLine = document.querySelector('main button[name="newLine"]');
+    const buttonDownload = document.querySelector(
+      'main button[name="download"]'
+    );
+    const tableResources = document.querySelector(
+      'main table[name="resources"]'
+    );
+
+    inputFile.onchange = async (evt) => {
+      const data = await readCSV(evt.target.files[0]);
+      tableResources.tHead.innerHTML = "";
+      tableResources.tBodies[0].innerHTML = "";
+
+      const headerTableTr = document.createElement("tr");
+      tableResources.tHead.appendChild(headerTableTr);
+      [...data[0], "Adicionar"].forEach((c) => {
+        const td = document.createElement("td");
+        headerTableTr.appendChild(td);
+        td.innerText = c;
+      });
+
+      data.slice(1).forEach((line) => {
+        const tr = document.createElement("tr");
+        tableResources.tBodies[0].appendChild(tr);
+
+        line.forEach((c) => {
+          const td = document.createElement("td");
+          tr.appendChild(td);
+          td.innerText = c;
+        });
+        const td = document.createElement("td");
+        tr.appendChild(td);
+
+        const input = document.createElement("input");
+        td.appendChild(document.createElement("input"));
+        input.type = "number";
+      });
+
+      async function readCSV(file) {
+        return new Promise((resolve) => {
+          fr = new FileReader();
+          fr.onload = (e) => {
+            resolve(fr.result.split("\n").map((line) => line.split(";")));
+          };
+          fr.readAsText(file);
+        });
+      }
+    };
+
+    buttonNewLine.onclick = (evt) => {
+      const tr = document.createElement("tr");
+      tableResources.tBodies[0].appendChild(tr);
+
+      const total = tableResources.tHead.firstChild.cells.length;
+      for (let i = 0; i < total - 1; i += 1) {
+        const td = document.createElement("td");
+        tr.appendChild(td);
+
+        const input = document.createElement("input");
+        td.appendChild(input);
+
+        const head = Array.from(tableResources.tHead.firstChild.cells).map(
+          (c) => c.innerText
+        );
+        if (i === head.findIndex((h) => h === "Quantidade")) {
+          input.type = "number";
+        }
+      }
+
+      const td = document.createElement("td");
+      tr.appendChild(td);
+      const buttonAdd = document.createElement("button");
+      td.appendChild(buttonAdd);
+      buttonAdd.innerText = "Adicionar";
+
+      buttonAdd.onclick = (e) => {
+        Array.from(tr.cells).forEach((td) => {
+          if (td.firstChild.tagName == "INPUT") {
+            td.innerText = td.firstChild.value;
+            return;
+          }
+          td.innerHTML = "";
+          buttonRemove = document.createElement("button");
+          td.appendChild(buttonRemove);
+
+          buttonRemove.innerText = "Remover";
+          buttonRemove.onclick = (e) => {
+            tableResources.tBodies[0].removeChild(tr);
+          };
+        });
+      };
+    };
+
+    buttonDownload.onclick = (evt) => {
+      const head = Array.from(tableResources.tHead.firstChild.cells).map(
+        (c) => c.innerText
+      );
+      const body = Array.from(tableResources.tBodies[0].children).map((line) =>
+        Array.from(line.cells).map((c) => {
+          if (c.innerText !== "") {
+            return c.innerText;
+          }
+          if (c.firstChild.innerText !== "") {
+            return c.firstChild.innerText;
+          }
+          return c.firstChild.value;
+        })
+      );
+
+      const iQuantity = head.findIndex((h) => h === "Quantidade");
+      const iAdd = head.findIndex((h) => h === "Adicionar");
+
+      const resources = [head.slice(0, head.length - 1).join(";")];
+      body.forEach((line) => {
+        let add = parseInt(line[iAdd]);
+        if (!isNaN(add)) {
+          const quantity = parseInt(line[iQuantity]);
+          if (isNaN(quantity)) {
+            alert(
+              `Quantidade inválida: ${
+                line[head.findIndex((h) => h === "Recurso")]
+              }`
+            );
+            return;
+          }
+
+          line[iQuantity] = `${quantity + add}`;
+        }
+
+        resources.push(line.slice(0, line.length - 1).join(";"));
+      });
+
+      const resourcesIn = [head.slice(0, head.length - 1).join(";")];
+      body.forEach((line) => {
+        if (line[iAdd] === "") {
+          return;
+        }
+
+        let add = parseInt(line[iAdd]);
+        if (!isNaN(add)) {
+          line[iQuantity] = `${add}`;
+        }
+
+        resourcesIn.push(line.slice(0, line.length - 1).join(";"));
+      });
+
+      if (resourcesIn.length === 1) {
+        alert("Não foi possível reconhecer alterações nos recursos");
+        return;
+      }
+
+      const now = new Date();
+      const time = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, "0"),
+        String(now.getDate()).padStart(2, "0"),
+        String(now.getHours()).padStart(2, "0"),
+        String(now.getMinutes()).padStart(2, "0"),
+        String(now.getSeconds()).padStart(2, "0"),
+      ].join("");
+
+      const aResources = document.createElement("a");
+      aResources.download = `recursos_${time}.csv`;
+      aResources.href = `data:text/csv;charset=utf-8,${encodeURIComponent(
+        resources.join("\n")
+      )}`;
+
+      const aResourcesIn = document.createElement("a");
+      aResourcesIn.download = `entrada_${time}.csv`;
+      aResourcesIn.href = `data:text/csv;charset=utf-8,${encodeURIComponent(
+        resourcesIn.join("\n")
+      )}`;
+
+      aResources.click();
+      aResourcesIn.click();
+    };
+  </script>
+</html>
